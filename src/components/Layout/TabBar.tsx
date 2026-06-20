@@ -3,9 +3,9 @@ import { Bell, CheckCircle, Clock } from 'lucide-react';
 import { usePatientStore } from '@/store/usePatientStore';
 
 export function TabBar() {
-  const { getPendingPatients, getConfirmedPatients, getFollowupPatients } = usePatientStore();
+  const { getPendingPatients, getConfirmedPatientsToHandle, getFollowupPatients } = usePatientStore();
   const pendingCount = getPendingPatients().length;
-  const confirmedCount = getConfirmedPatients().filter(p => p.status === 'confirmed').length;
+  const confirmedCount = getConfirmedPatientsToHandle().length;
   const followupCount = getFollowupPatients().length;
 
   const tabs = [

@@ -23,7 +23,7 @@ export function PatientCard({ patient, onClick, actionSlot, variant = 'pending' 
   };
 
   const getRiskBadge = () => {
-    if (variant !== 'followup' || !patient.riskTags?.length) return null;
+    if (variant === 'followup' || !patient.riskTags?.length) return null;
     return patient.riskTags.map((tag, index) => (
       <Badge key={index} variant="danger" size="sm">
         {tag}

@@ -158,6 +158,17 @@ export const mockPatients: Patient[] = [
     lastTreatmentDate: daysAgo(30),
     riskLevel: 'high',
     riskTags: ['根管未完成'],
+    nextFollowupDate: new Date().toISOString().split('T')[0],
+    followupRecords: [
+      {
+        id: 'f1',
+        date: daysAgo(3),
+        result: 'needs_callback',
+        note: '患者说最近比较忙，约好下周再联系确认时间',
+        nextFollowupDate: new Date().toISOString().split('T')[0],
+        createdAt: daysAgo(3),
+      },
+    ],
     createdAt: now,
     updatedAt: now,
   },

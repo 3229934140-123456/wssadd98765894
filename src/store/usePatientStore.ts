@@ -1,17 +1,58 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Patient, ReminderMethod, NoShowReason, PatientStatus } from '@/types';
+import type { Patient, ReminderMethod, NoShowReason, PatientStatus, FollowupResult, DateFilter, FollowupRecord } from '@/types';
+import { highRiskKeywords } from '@/types';
 import { mockPatients } from '@/data/mockData';
+import { isToday, isTomorrow } from '@/utils/date';
+
+function calculateRisk(treatment: string): { level: 'high' | 'medium' | 'low'; tags: string[] } {
+  const tags: string[] = [];
+  
+  for (const item of highRiskKeywords) {
+    if (treatment.includes(item.keyword)) {
+      tags.push(item.tag);
+    }
+  }
+  
+  if (tags.length > 0) {
+    return { level: 'high', tags };
+  }
+  
+  if (treatment.includes('补牙') || treatment.includes('洁牙') || treatment.includes('假牙')) {
+    return { level: 'medium', tags: [] };
+  }
+  
+  return { level: 'low', tags: [] };
+}
+
+function generateId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
 
 interface PatientState {
   patients: Patient[];
+  dateFilter: DateFilter;
+  doctorFilter: string;
+  treatmentFilter: string;
+  
+  setDateFilter: (filter: DateFilter) => void;
+  setDoctorFilter: (filter: string) => void;
+  setTreatmentFilter: (filter: string) => void;
+  clearFilters: () => void;
   
   sendReminder: (id: string, method: ReminderMethod, remark?: string) => void;
   markArrived: (id: string) => void;
   markNoShow: (id: string, reason: NoShowReason) => void;
+  addFollowupRecord: (id: string, result: FollowupResult, note: string, nextFollowupDate?: string) => void;
+  
+  getFilteredPendingPatients: () => Patient[];
   getPendingPatients: () => Patient[];
-  getConfirmedPatients: () => Patient[];
+  getPendingDoctors: () => string[];
+  getPendingTreatments: () => string[];
+  getConfirmedPatientsToHandle: () => Patient[];
+  getConfirmedPatientsHandled: () => Patient[];
   getFollowupPatients: () => Patient[];
+  
   resetData: () => void;
 }
 
@@ -19,6 +60,14 @@ export const usePatientStore = create<PatientState>()(
   persist(
     (set, get) => ({
       patients: mockPatients,
+      dateFilter: 'today',
+      doctorFilter: '',
+      treatmentFilter: '',
+
+      setDateFilter: (filter) => set({ dateFilter: filter }),
+      setDoctorFilter: (filter) => set({ doctorFilter: filter }),
+      setTreatmentFilter: (filter) => set({ treatmentFilter: filter }),
+      clearFilters: () => set({ dateFilter: 'today', doctorFilter: '', treatmentFilter: '' }),
 
       sendReminder: (id, method, remark) =>
         set((state) => ({
@@ -57,11 +106,57 @@ export const usePatientStore = create<PatientState>()(
                   status: 'followup' as PatientStatus,
                   noShowReason: reason,
                   lastTreatmentDate: p.lastTreatmentDate || new Date().toISOString(),
+                  ...calculateRisk(p.treatment),
                   updatedAt: new Date().toISOString(),
                 }
               : p
           ),
         })),
+
+      addFollowupRecord: (id, result, note, nextFollowupDate) =>
+        set((state) => ({
+          patients: state.patients.map((p) => {
+            if (p.id !== id) return p;
+            
+            const newRecord: FollowupRecord = {
+              id: generateId(),
+              date: new Date().toISOString(),
+              result,
+              note,
+              nextFollowupDate,
+              createdAt: new Date().toISOString(),
+            };
+
+            const existingRecords = p.followupRecords || [];
+            
+            return {
+              ...p,
+              followupRecords: [newRecord, ...existingRecords],
+              nextFollowupDate,
+              updatedAt: new Date().toISOString(),
+            };
+          }),
+        })),
+
+      getFilteredPendingPatients: () => {
+        const { patients, dateFilter, doctorFilter, treatmentFilter } = get();
+        return patients
+          .filter((p) => p.status === 'pending')
+          .filter((p) => {
+            if (dateFilter === 'today') return isToday(p.appointmentTime);
+            if (dateFilter === 'tomorrow') return isTomorrow(p.appointmentTime);
+            return true;
+          })
+          .filter((p) => {
+            if (!doctorFilter) return true;
+            return p.doctor === doctorFilter;
+          })
+          .filter((p) => {
+            if (!treatmentFilter) return true;
+            return p.treatment === treatmentFilter;
+          })
+          .sort((a, b) => new Date(a.appointmentTime).getTime() - new Date(b.appointmentTime).getTime());
+      },
 
       getPendingPatients: () => {
         const { patients } = get();
@@ -70,11 +165,35 @@ export const usePatientStore = create<PatientState>()(
           .sort((a, b) => new Date(a.appointmentTime).getTime() - new Date(b.appointmentTime).getTime());
       },
 
-      getConfirmedPatients: () => {
+      getPendingDoctors: () => {
+        const { patients } = get();
+        const doctors = patients
+          .filter((p) => p.status === 'pending')
+          .map((p) => p.doctor);
+        return [...new Set(doctors)];
+      },
+
+      getPendingTreatments: () => {
+        const { patients } = get();
+        const treatments = patients
+          .filter((p) => p.status === 'pending')
+          .map((p) => p.treatment);
+        return [...new Set(treatments)];
+      },
+
+      getConfirmedPatientsToHandle: () => {
         const { patients } = get();
         return patients
-          .filter((p) => p.status === 'confirmed' || p.status === 'arrived')
+          .filter((p) => p.status === 'confirmed')
           .sort((a, b) => new Date(a.appointmentTime).getTime() - new Date(b.appointmentTime).getTime());
+      },
+
+      getConfirmedPatientsHandled: () => {
+        const { patients } = get();
+        return patients
+          .filter((p) => p.status === 'arrived' || p.status === 'no_show' || p.status === 'followup')
+          .filter((p) => isToday(p.appointmentTime) || isTomorrow(p.appointmentTime))
+          .sort((a, b) => new Date(b.appointmentTime).getTime() - new Date(a.appointmentTime).getTime());
       },
 
       getFollowupPatients: () => {
@@ -86,11 +205,23 @@ export const usePatientStore = create<PatientState>()(
             const riskA = riskOrder[a.riskLevel || 'low'];
             const riskB = riskOrder[b.riskLevel || 'low'];
             if (riskA !== riskB) return riskA - riskB;
+            
+            if (a.nextFollowupDate && b.nextFollowupDate) {
+              return new Date(a.nextFollowupDate).getTime() - new Date(b.nextFollowupDate).getTime();
+            }
+            if (a.nextFollowupDate) return -1;
+            if (b.nextFollowupDate) return 1;
+            
             return new Date(b.appointmentTime).getTime() - new Date(a.appointmentTime).getTime();
           });
       },
 
-      resetData: () => set({ patients: mockPatients }),
+      resetData: () => set({ 
+        patients: mockPatients,
+        dateFilter: 'today',
+        doctorFilter: '',
+        treatmentFilter: '',
+      }),
     }),
     {
       name: 'dental-reminder-data',
