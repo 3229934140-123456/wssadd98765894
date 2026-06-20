@@ -61,6 +61,7 @@ interface PatientState {
   getConfirmedPatientsHandled: () => Patient[];
   getFollowupPatients: () => Patient[];
   getFilteredFollowupPatients: () => Patient[];
+  getAllConfirmedToHandle: () => Patient[];
   
   resetData: () => void;
 }
@@ -157,6 +158,10 @@ export const usePatientStore = create<PatientState>()(
               status: isRescheduled ? 'pending' as PatientStatus : p.status,
               reminderMethod: isRescheduled ? undefined : p.reminderMethod,
               remark: isRescheduled ? undefined : p.remark,
+              noShowReason: isRescheduled ? undefined : p.noShowReason,
+              riskLevel: isRescheduled ? undefined : p.riskLevel,
+              riskTags: isRescheduled ? undefined : p.riskTags,
+              lastTreatmentDate: isRescheduled ? undefined : p.lastTreatmentDate,
               updatedAt: new Date().toISOString(),
             };
           }),
@@ -262,6 +267,13 @@ export const usePatientStore = create<PatientState>()(
           }
           return true;
         });
+      },
+
+      getAllConfirmedToHandle: () => {
+        const { patients } = get();
+        return patients
+          .filter((p) => p.status === 'confirmed')
+          .sort((a, b) => new Date(a.appointmentTime).getTime() - new Date(b.appointmentTime).getTime());
       },
 
       resetData: () => set({ 

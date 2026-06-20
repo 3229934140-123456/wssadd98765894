@@ -1,4 +1,4 @@
-import { Phone, MessageCircle, Users, Clock, User, Stethoscope, Calendar } from 'lucide-react';
+import { Phone, MessageCircle, Users, Clock, User, Stethoscope, Calendar, CalendarClock } from 'lucide-react';
 import type { Patient } from '@/types';
 import { formatTime, isToday, isTomorrow, formatChineseDate } from '@/utils/date';
 import { Badge } from '@/components/common/Badge';
@@ -37,8 +37,8 @@ export function PatientCard({ patient, onClick, actionSlot, variant = 'pending' 
     if (!lastRescheduled) return null;
     return (
       <Badge variant="accent" size="sm" className="flex items-center gap-1">
-        <Calendar size={12} />
-        已改约
+        <CalendarClock size={12} />
+        已改约 {formatChineseDate(patient.appointmentTime).split(' ')[0]} {formatTime(patient.appointmentTime)}
       </Badge>
     );
   };

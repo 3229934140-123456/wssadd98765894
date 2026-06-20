@@ -8,18 +8,15 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { 
     getPendingPatients, 
-    getConfirmedPatientsToHandle, 
+    getAllConfirmedToHandle,
     getFollowupPatients,
-    resetPendingFilters,
-    resetConfirmedFilter,
-    resetFollowupFilter,
-    setFollowupFilter,
   } = usePatientStore();
 
   const today = new Date();
   const allPending = getPendingPatients();
   const todayPending = allPending.filter((p) => isToday(p.appointmentTime));
-  const toHandleToday = getConfirmedPatientsToHandle().filter((p) => isToday(p.appointmentTime));
+  const allConfirmedToHandle = getAllConfirmedToHandle();
+  const toHandleToday = allConfirmedToHandle.filter((p) => isToday(p.appointmentTime));
   const allFollowup = getFollowupPatients();
   const todayFollowup = allFollowup.filter((p) => p.nextFollowupDate && isToday(p.nextFollowupDate));
   const highRiskFollowup = allFollowup.filter((p) => p.riskLevel === 'high');
@@ -33,8 +30,7 @@ export default function Dashboard() {
       bgGradient: 'from-primary-50 to-primary-100',
       iconBg: 'bg-primary-500',
       action: () => {
-        resetPendingFilters();
-        navigate('/pending', { state: { fromDashboard: true } });
+        navigate('/pending', { state: { dateFilter: 'today' } });
       },
       hint: '点击查看全部',
     },
@@ -46,8 +42,7 @@ export default function Dashboard() {
       bgGradient: 'from-accent-50 to-orange-100',
       iconBg: 'bg-accent-500',
       action: () => {
-        resetConfirmedFilter();
-        navigate('/confirmed', { state: { fromDashboard: true } });
+        navigate('/confirmed', { state: { confirmedDateFilter: 'today' } });
       },
       hint: '点击去核对',
     },
@@ -59,9 +54,7 @@ export default function Dashboard() {
       bgGradient: 'from-amber-50 to-yellow-100',
       iconBg: 'bg-amber-500',
       action: () => {
-        resetFollowupFilter();
-        setFollowupFilter('today');
-        navigate('/followup', { state: { fromDashboard: true } });
+        navigate('/followup', { state: { followupFilter: 'today' } });
       },
       hint: '点击去跟进',
     },
@@ -73,9 +66,7 @@ export default function Dashboard() {
       bgGradient: 'from-red-50 to-rose-100',
       iconBg: 'bg-red-500',
       action: () => {
-        resetFollowupFilter();
-        setFollowupFilter('high_risk');
-        navigate('/followup', { state: { fromDashboard: true } });
+        navigate('/followup', { state: { followupFilter: 'high_risk' } });
       },
       hint: '优先追回',
     },
@@ -141,7 +132,7 @@ export default function Dashboard() {
                 今日待提醒
               </h2>
               <button
-                onClick={() => navigate('/pending')}
+                onClick={() => navigate('/pending', { state: { dateFilter: 'today' } })}
                 className="text-sm text-primary-600 font-medium"
               >
                 查看全部 →
@@ -184,7 +175,7 @@ export default function Dashboard() {
                 高风险待跟进
               </h2>
               <button
-                onClick={() => navigate('/followup')}
+                onClick={() => navigate('/followup', { state: { followupFilter: 'high_risk' } })}
                 className="text-sm text-red-600 font-medium"
               >
                 全部跟进 →
@@ -207,7 +198,7 @@ export default function Dashboard() {
                       </p>
                     </div>
                     <button
-                      onClick={() => navigate('/followup')}
+                      onClick={() => navigate('/followup', { state: { followupFilter: 'high_risk' } })}
                       className="px-3 py-1.5 bg-red-500 text-white text-xs font-medium rounded-lg flex-shrink-0"
                     >
                       跟进

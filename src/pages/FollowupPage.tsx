@@ -28,8 +28,10 @@ export default function FollowupPage() {
   const [isFollowupModalOpen, setIsFollowupModalOpen] = useState(false);
 
   useEffect(() => {
-    const fromDashboard = (location.state as { fromDashboard?: boolean })?.fromDashboard;
-    if (!fromDashboard) {
+    const state = location.state as { followupFilter?: FollowupFilter } | null;
+    if (state?.followupFilter) {
+      setFollowupFilter(state.followupFilter);
+    } else {
       resetFollowupFilter();
     }
   }, []);
@@ -289,7 +291,7 @@ export default function FollowupPage() {
         onClose={() => setIsFollowupModalOpen(false)}
         onConfirm={handleFollowupConfirm}
         patientName={selectedPatient?.name}
-        lastFollowup={getLastFollowup(selectedPatient!)}
+        lastFollowup={selectedPatient ? getLastFollowup(selectedPatient) : null}
       />
     </div>
   );

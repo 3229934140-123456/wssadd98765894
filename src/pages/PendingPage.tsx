@@ -36,8 +36,11 @@ export default function PendingPage() {
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
-    const fromDashboard = (location.state as { fromDashboard?: boolean })?.fromDashboard;
-    if (!fromDashboard) {
+    const state = location.state as { dateFilter?: DateFilter } | null;
+    if (state?.dateFilter) {
+      resetPendingFilters();
+      setDateFilter(state.dateFilter);
+    } else {
       resetPendingFilters();
     }
   }, []);
