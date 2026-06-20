@@ -1,25 +1,50 @@
-import { useState } from 'react';
-import { AlertTriangle, Clock, Phone, RefreshCw, CalendarDays, MessageSquare, ChevronRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import { AlertTriangle, Clock, Phone, RefreshCw, CalendarDays, MessageSquare, ChevronRight, CalendarClock } from 'lucide-react';
 import { PatientCard } from '@/components/Patient/PatientCard';
 import { Badge } from '@/components/common/Badge';
 import { FollowupModal } from '@/components/Modal/FollowupModal';
 import { usePatientStore } from '@/store/usePatientStore';
-import type { Patient, FollowupResult } from '@/types';
+import type { Patient, FollowupResult, FollowupFilter } from '@/types';
 import { noShowReasonLabels, followupResultLabels } from '@/types';
-import { daysSince, formatChineseDate, isToday, isTomorrow } from '@/utils/date';
+import { daysSince, formatChineseDate, formatTime, isToday, isTomorrow } from '@/utils/date';
 import { cn } from '@/lib/utils';
 
 export default function FollowupPage() {
-  const { getFollowupPatients, resetData, addFollowupRecord } = usePatientStore();
-  const patients = getFollowupPatients();
+  const { 
+    getFilteredFollowupPatients, 
+    getFollowupPatients,
+    resetData, 
+    addFollowupRecord,
+    followupFilter,
+    setFollowupFilter,
+    resetFollowupFilter,
+  } = usePatientStore();
+  
+  const location = useLocation();
+  const patients = getFilteredFollowupPatients();
+  const allPatients = getFollowupPatients();
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [isFollowupModalOpen, setIsFollowupModalOpen] = useState(false);
 
-  const highRiskCount = patients.filter((p) => p.riskLevel === 'high').length;
-  const needFollowupTodayCount = patients.filter((p) => {
+  useEffect(() => {
+    const fromDashboard = (location.state as { fromDashboard?: boolean })?.fromDashboard;
+    if (!fromDashboard) {
+      resetFollowupFilter();
+    }
+  }, []);
+
+  const highRiskCount = allPatients.filter((p) => p.riskLevel === 'high').length;
+  const needFollowupTodayCount = allPatients.filter((p) => {
     if (!p.nextFollowupDate) return false;
     return isToday(p.nextFollowupDate);
   }).length;
+
+  const filterTabs: { value: FollowupFilter; label: string; count: number }[] = [
+    { value: 'all', label: '全部', count: allPatients.length },
+    { value: 'today', label: '今日跟进', count: needFollowupTodayCount },
+    { value: 'high_risk', label: '高风险', count: highRiskCount },
+  ];
 
   const handleFollowupClick = (patient: Patient) => {
     setSelectedPatient(patient);
@@ -41,13 +66,14 @@ export default function FollowupPage() {
       date: last.date,
       result: followupResultLabels[last.result],
       note: last.note,
+      rescheduledTime: last.rescheduledTime,
     };
   };
 
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
       <div className="pt-20 px-4 max-w-3xl mx-auto">
-        <div className="mb-6">
+        <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <AlertTriangle size={20} className="text-accent-500" />
@@ -63,17 +89,39 @@ export default function FollowupPage() {
           </div>
           <div className="flex items-center gap-4 text-sm">
             <span className="text-gray-500">
-              共 <span className="font-semibold text-gray-700">{patients.length}</span> 位待跟进
+              当前显示 <span className="font-semibold text-gray-700">{patients.length}</span> 位
             </span>
-            {highRiskCount > 0 && (
-              <span className="text-red-500 font-medium">
-                高风险 {highRiskCount} 位
-              </span>
-            )}
           </div>
         </div>
 
-        {needFollowupTodayCount > 0 && (
+        <div className="bg-white rounded-2xl p-1 mb-4 shadow-sm border border-gray-100">
+          <div className="flex">
+            {filterTabs.map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => setFollowupFilter(tab.value)}
+                className={cn(
+                  'flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl text-sm font-medium transition-all',
+                  followupFilter === tab.value
+                    ? 'bg-primary-500 text-white shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                )}
+              >
+                {tab.label}
+                <span className={cn(
+                  'text-xs px-2 py-0.5 rounded-full',
+                  followupFilter === tab.value
+                    ? 'bg-white/20 text-white'
+                    : 'bg-gray-100 text-gray-500'
+                )}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {followupFilter === 'today' && needFollowupTodayCount > 0 && (
           <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
             <div className="flex items-start gap-3">
               <CalendarDays size={20} className="text-amber-500 flex-shrink-0 mt-0.5" />
@@ -87,7 +135,7 @@ export default function FollowupPage() {
           </div>
         )}
 
-        {highRiskCount > 0 && (
+        {followupFilter === 'high_risk' && highRiskCount > 0 && (
           <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl">
             <div className="flex items-start gap-3">
               <AlertTriangle size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
@@ -106,8 +154,12 @@ export default function FollowupPage() {
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
               <Clock size={40} className="text-green-400" />
             </div>
-            <p className="text-gray-400 text-lg">暂无需跟进患者</p>
-            <p className="text-gray-300 text-sm mt-1">所有患者都按时到诊啦 👏</p>
+            <p className="text-gray-400 text-lg">
+              {followupFilter === 'today' ? '今日暂无待跟进患者' : followupFilter === 'high_risk' ? '暂无高风险患者' : '暂无需跟进患者'}
+            </p>
+            <p className="text-gray-300 text-sm mt-1">
+              {followupFilter === 'today' ? '今天的跟进都完成啦 🎉' : '所有患者都按时到诊啦 👏'}
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -179,13 +231,19 @@ export default function FollowupPage() {
                       <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
                         <MessageSquare size={14} className="text-gray-400 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <span className="text-xs text-gray-500">
                               {new Date(lastFollowup.date).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })}
                             </span>
                             <Badge variant="primary" size="sm">
                               {lastFollowup.result}
                             </Badge>
+                            {lastFollowup.rescheduledTime && (
+                              <Badge variant="accent" size="sm" className="flex items-center gap-1">
+                                <CalendarClock size={12} />
+                                改约 {formatChineseDate(lastFollowup.rescheduledTime).split(' ')[0]} {formatTime(lastFollowup.rescheduledTime)}
+                              </Badge>
+                            )}
                           </div>
                           <p className="text-sm text-gray-600 truncate">{lastFollowup.note}</p>
                         </div>

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Calendar, Filter, X, ChevronDown, User, Stethoscope } from 'lucide-react';
 import { PatientCard } from '@/components/Patient/PatientCard';
 import { ReminderModal } from '@/components/Modal/ReminderModal';
@@ -20,6 +21,7 @@ export default function PendingPage() {
     setDoctorFilter,
     setTreatmentFilter,
     clearFilters,
+    resetPendingFilters,
     sendReminder,
   } = usePatientStore();
 
@@ -28,9 +30,17 @@ export default function PendingPage() {
   const doctors = getPendingDoctors();
   const treatments = getPendingTreatments();
 
+  const location = useLocation();
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    const fromDashboard = (location.state as { fromDashboard?: boolean })?.fromDashboard;
+    if (!fromDashboard) {
+      resetPendingFilters();
+    }
+  }, []);
 
   const handleCardClick = (patient: Patient) => {
     setSelectedPatient(patient);

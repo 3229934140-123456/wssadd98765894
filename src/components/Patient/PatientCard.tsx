@@ -31,6 +31,18 @@ export function PatientCard({ patient, onClick, actionSlot, variant = 'pending' 
     ));
   };
 
+  const getRescheduledBadge = () => {
+    if (variant !== 'pending') return null;
+    const lastRescheduled = patient.followupRecords?.find(r => r.result === 'rescheduled');
+    if (!lastRescheduled) return null;
+    return (
+      <Badge variant="accent" size="sm" className="flex items-center gap-1">
+        <Calendar size={12} />
+        已改约
+      </Badge>
+    );
+  };
+
   return (
     <div
       className={cn(
@@ -46,7 +58,7 @@ export function PatientCard({ patient, onClick, actionSlot, variant = 'pending' 
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
             <h3 className="text-lg font-semibold text-gray-800 truncate">{patient.name}</h3>
             {variant === 'confirmed' && patient.status === 'arrived' && (
               <Badge variant="success">已到诊</Badge>
@@ -55,6 +67,7 @@ export function PatientCard({ patient, onClick, actionSlot, variant = 'pending' 
               <Badge variant="primary">待到诊</Badge>
             )}
             {getRiskBadge()}
+            {getRescheduledBadge()}
           </div>
 
           <div className="space-y-1.5 text-sm">

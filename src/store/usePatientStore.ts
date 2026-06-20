@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Patient, ReminderMethod, NoShowReason, PatientStatus, FollowupResult, DateFilter, FollowupRecord } from '@/types';
+import type { Patient, ReminderMethod, NoShowReason, PatientStatus, FollowupResult, DateFilter, FollowupRecord, FollowupFilter } from '@/types';
 import { highRiskKeywords } from '@/types';
 import { mockPatients } from '@/data/mockData';
 import { isToday, isTomorrow } from '@/utils/date';
@@ -35,11 +35,17 @@ interface PatientState {
   doctorFilter: string;
   treatmentFilter: string;
   confirmedDateFilter: DateFilter;
+  followupFilter: FollowupFilter;
   
   setDateFilter: (filter: DateFilter) => void;
   setDoctorFilter: (filter: string) => void;
   setTreatmentFilter: (filter: string) => void;
   setConfirmedDateFilter: (filter: DateFilter) => void;
+  setFollowupFilter: (filter: FollowupFilter) => void;
+  
+  resetPendingFilters: () => void;
+  resetConfirmedFilter: () => void;
+  resetFollowupFilter: () => void;
   clearFilters: () => void;
   
   sendReminder: (id: string, method: ReminderMethod, remark?: string) => void;
@@ -54,6 +60,7 @@ interface PatientState {
   getConfirmedPatientsToHandle: () => Patient[];
   getConfirmedPatientsHandled: () => Patient[];
   getFollowupPatients: () => Patient[];
+  getFilteredFollowupPatients: () => Patient[];
   
   resetData: () => void;
 }
@@ -66,11 +73,17 @@ export const usePatientStore = create<PatientState>()(
       doctorFilter: '',
       treatmentFilter: '',
       confirmedDateFilter: 'today',
+      followupFilter: 'all',
 
       setDateFilter: (filter) => set({ dateFilter: filter }),
       setDoctorFilter: (filter) => set({ doctorFilter: filter }),
       setTreatmentFilter: (filter) => set({ treatmentFilter: filter }),
       setConfirmedDateFilter: (filter) => set({ confirmedDateFilter: filter }),
+      setFollowupFilter: (filter) => set({ followupFilter: filter }),
+
+      resetPendingFilters: () => set({ dateFilter: 'today', doctorFilter: '', treatmentFilter: '' }),
+      resetConfirmedFilter: () => set({ confirmedDateFilter: 'today' }),
+      resetFollowupFilter: () => set({ followupFilter: 'all' }),
       clearFilters: () => set({ dateFilter: 'today', doctorFilter: '', treatmentFilter: '' }),
 
       sendReminder: (id, method, remark) =>
@@ -128,6 +141,7 @@ export const usePatientStore = create<PatientState>()(
               result,
               note,
               nextFollowupDate,
+              rescheduledTime,
               createdAt: new Date().toISOString(),
             };
 
@@ -235,12 +249,28 @@ export const usePatientStore = create<PatientState>()(
           });
       },
 
+      getFilteredFollowupPatients: () => {
+        const { followupFilter } = get();
+        const patients = get().getFollowupPatients();
+        
+        return patients.filter((p) => {
+          if (followupFilter === 'today') {
+            return p.nextFollowupDate && isToday(p.nextFollowupDate);
+          }
+          if (followupFilter === 'high_risk') {
+            return p.riskLevel === 'high';
+          }
+          return true;
+        });
+      },
+
       resetData: () => set({ 
         patients: mockPatients,
         dateFilter: 'today',
         doctorFilter: '',
         treatmentFilter: '',
         confirmedDateFilter: 'today',
+        followupFilter: 'all',
       }),
     }),
     {

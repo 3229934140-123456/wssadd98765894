@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Check, XCircle, Calendar, ChevronDown, ChevronUp, Clock, CheckCircle2 } from 'lucide-react';
 import { PatientCard } from '@/components/Patient/PatientCard';
 import { NoShowModal } from '@/components/Modal/NoShowModal';
@@ -15,15 +16,24 @@ export default function ConfirmedPage() {
     getConfirmedPatientsHandled, 
     confirmedDateFilter,
     setConfirmedDateFilter,
+    resetConfirmedFilter,
     markArrived, 
     markNoShow 
   } = usePatientStore();
   
   const toHandlePatients = getConfirmedPatientsToHandle();
   const handledPatients = getConfirmedPatientsHandled();
+  const location = useLocation();
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [isNoShowModalOpen, setIsNoShowModalOpen] = useState(false);
   const [showHandled, setShowHandled] = useState(false);
+
+  useEffect(() => {
+    const fromDashboard = (location.state as { fromDashboard?: boolean })?.fromDashboard;
+    if (!fromDashboard) {
+      resetConfirmedFilter();
+    }
+  }, []);
 
   const handleArrived = (patient: Patient) => {
     markArrived(patient.id);

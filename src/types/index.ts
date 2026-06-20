@@ -10,12 +10,15 @@ export type FollowupResult = 'promised_arrival' | 'rescheduled' | 'needs_callbac
 
 export type DateFilter = 'today' | 'tomorrow' | 'all';
 
+export type FollowupFilter = 'all' | 'today' | 'high_risk';
+
 export interface FollowupRecord {
   id: string;
   date: string;
   result: FollowupResult;
   note: string;
   nextFollowupDate?: string;
+  rescheduledTime?: string;
   createdAt: string;
 }
 

@@ -6,7 +6,15 @@ import { cn } from '@/lib/utils';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { getPendingPatients, getConfirmedPatientsToHandle, getFollowupPatients } = usePatientStore();
+  const { 
+    getPendingPatients, 
+    getConfirmedPatientsToHandle, 
+    getFollowupPatients,
+    resetPendingFilters,
+    resetConfirmedFilter,
+    resetFollowupFilter,
+    setFollowupFilter,
+  } = usePatientStore();
 
   const today = new Date();
   const allPending = getPendingPatients();
@@ -24,7 +32,10 @@ export default function Dashboard() {
       color: 'primary',
       bgGradient: 'from-primary-50 to-primary-100',
       iconBg: 'bg-primary-500',
-      action: () => navigate('/pending'),
+      action: () => {
+        resetPendingFilters();
+        navigate('/pending', { state: { fromDashboard: true } });
+      },
       hint: '点击查看全部',
     },
     {
@@ -34,7 +45,10 @@ export default function Dashboard() {
       color: 'accent',
       bgGradient: 'from-accent-50 to-orange-100',
       iconBg: 'bg-accent-500',
-      action: () => navigate('/confirmed'),
+      action: () => {
+        resetConfirmedFilter();
+        navigate('/confirmed', { state: { fromDashboard: true } });
+      },
       hint: '点击去核对',
     },
     {
@@ -44,7 +58,11 @@ export default function Dashboard() {
       color: 'amber',
       bgGradient: 'from-amber-50 to-yellow-100',
       iconBg: 'bg-amber-500',
-      action: () => navigate('/followup'),
+      action: () => {
+        resetFollowupFilter();
+        setFollowupFilter('today');
+        navigate('/followup', { state: { fromDashboard: true } });
+      },
       hint: '点击去跟进',
     },
     {
@@ -54,7 +72,11 @@ export default function Dashboard() {
       color: 'red',
       bgGradient: 'from-red-50 to-rose-100',
       iconBg: 'bg-red-500',
-      action: () => navigate('/followup'),
+      action: () => {
+        resetFollowupFilter();
+        setFollowupFilter('high_risk');
+        navigate('/followup', { state: { fromDashboard: true } });
+      },
       hint: '优先追回',
     },
   ];
