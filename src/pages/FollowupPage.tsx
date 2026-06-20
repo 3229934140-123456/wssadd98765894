@@ -26,10 +26,11 @@ export default function FollowupPage() {
     setIsFollowupModalOpen(true);
   };
 
-  const handleFollowupConfirm = (result: FollowupResult, note: string, nextFollowupDate?: string) => {
+  const handleFollowupConfirm = (result: FollowupResult, note: string, nextFollowupDate?: string, rescheduledTime?: string) => {
     if (selectedPatient) {
-      addFollowupRecord(selectedPatient.id, result, note, nextFollowupDate);
+      addFollowupRecord(selectedPatient.id, result, note, nextFollowupDate, rescheduledTime);
     }
+    setIsFollowupModalOpen(false);
     setSelectedPatient(null);
   };
 

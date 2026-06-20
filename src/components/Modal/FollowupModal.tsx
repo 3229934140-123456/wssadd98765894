@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { X, Calendar, CheckCircle, Clock, PhoneOff, Ban, CalendarDays, MessageSquare } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Calendar, CheckCircle, Clock, PhoneOff, Ban, CalendarDays, MessageSquare, Clock3 } from 'lucide-react';
 import type { FollowupResult } from '@/types';
 import { followupResultLabels } from '@/types';
 import { cn } from '@/lib/utils';
@@ -8,7 +8,7 @@ import { formatDate } from '@/utils/date';
 interface FollowupModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (result: FollowupResult, note: string, nextFollowupDate?: string) => void;
+  onConfirm: (result: FollowupResult, note: string, nextFollowupDate?: string, rescheduledTime?: string) => void;
   patientName?: string;
   lastFollowup?: { date: string; result: string; note: string } | null;
 }
@@ -18,21 +18,37 @@ export function FollowupModal({ isOpen, onClose, onConfirm, patientName, lastFol
   const [note, setNote] = useState('');
   const [nextDate, setNextDate] = useState('');
   const [showNextDate, setShowNextDate] = useState(false);
+  const [rescheduledDate, setRescheduledDate] = useState('');
+  const [rescheduledTime, setRescheduledTime] = useState('09:00');
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedResult(null);
+      setNote('');
+      setNextDate('');
+      setShowNextDate(false);
+      setRescheduledDate('');
+      setRescheduledTime('09:00');
+    }
+  }, [isOpen]);
 
   const handleConfirm = () => {
     if (!selectedResult) return;
-    onConfirm(selectedResult, note, showNextDate && nextDate ? nextDate : undefined);
-    setSelectedResult(null);
-    setNote('');
-    setNextDate('');
-    setShowNextDate(false);
+
+    let rescheduledDateTime: string | undefined;
+    if (selectedResult === 'rescheduled' && rescheduledDate && rescheduledTime) {
+      rescheduledDateTime = `${rescheduledDate}T${rescheduledTime}:00`;
+    }
+
+    onConfirm(
+      selectedResult, 
+      note, 
+      showNextDate && nextDate ? nextDate : undefined,
+      rescheduledDateTime
+    );
   };
 
   const handleClose = () => {
-    setSelectedResult(null);
-    setNote('');
-    setNextDate('');
-    setShowNextDate(false);
     onClose();
   };
 
@@ -50,6 +66,9 @@ export function FollowupModal({ isOpen, onClose, onConfirm, patientName, lastFol
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const minDate = formatDate(tomorrow);
+
+  const isRescheduled = selectedResult === 'rescheduled';
+  const canConfirm = selectedResult && (!isRescheduled || (rescheduledDate && rescheduledTime));
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
@@ -121,6 +140,42 @@ export function FollowupModal({ isOpen, onClose, onConfirm, patientName, lastFol
             </div>
           </div>
 
+          {isRescheduled && (
+            <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 animate-fade-in">
+              <p className="text-sm font-medium text-blue-700 mb-3 flex items-center gap-2">
+                <CalendarDays size={16} />
+                改约信息
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-blue-600 mb-1.5">新预约日期</label>
+                  <input
+                    type="date"
+                    value={rescheduledDate}
+                    min={minDate}
+                    onChange={(e) => setRescheduledDate(e.target.value)}
+                    className="w-full px-3 py-2.5 text-sm border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-blue-600 mb-1.5">新预约时间</label>
+                  <div className="relative">
+                    <input
+                      type="time"
+                      value={rescheduledTime}
+                      onChange={(e) => setRescheduledTime(e.target.value)}
+                      className="w-full px-3 py-2.5 text-sm border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                    />
+                    <Clock3 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+              {(!rescheduledDate || !rescheduledTime) && (
+                <p className="text-xs text-blue-500 mt-2">请填写改约后的日期和时间</p>
+              )}
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               跟进备注
@@ -133,41 +188,43 @@ export function FollowupModal({ isOpen, onClose, onConfirm, patientName, lastFol
             />
           </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-gray-700">
-                设置下次联系时间
-              </label>
-              <button
-                type="button"
-                onClick={() => setShowNextDate(!showNextDate)}
-                className={cn(
-                  'text-sm font-medium transition-colors',
-                  showNextDate ? 'text-primary-600' : 'text-gray-400 hover:text-gray-600'
-                )}
-              >
-                {showNextDate ? '取消' : '设置'}
-              </button>
+          {!isRescheduled && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-gray-700">
+                  设置下次联系时间
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowNextDate(!showNextDate)}
+                  className={cn(
+                    'text-sm font-medium transition-colors',
+                    showNextDate ? 'text-primary-600' : 'text-gray-400 hover:text-gray-600'
+                  )}
+                >
+                  {showNextDate ? '取消' : '设置'}
+                </button>
+              </div>
+              {showNextDate && (
+                <input
+                  type="date"
+                  value={nextDate}
+                  min={minDate}
+                  onChange={(e) => setNextDate(e.target.value)}
+                  className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              )}
             </div>
-            {showNextDate && (
-              <input
-                type="date"
-                value={nextDate}
-                min={minDate}
-                onChange={(e) => setNextDate(e.target.value)}
-                className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            )}
-          </div>
+          )}
         </div>
 
         <div className="sticky bottom-0 bg-white p-5 pt-0 border-t border-gray-100">
           <button
             onClick={handleConfirm}
-            disabled={!selectedResult}
+            disabled={!canConfirm}
             className={cn(
               'w-full py-4 rounded-2xl font-semibold text-lg transition-all duration-200',
-              selectedResult
+              canConfirm
                 ? 'bg-primary-500 text-white active:scale-[0.98] hover:bg-primary-600'
                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
             )}

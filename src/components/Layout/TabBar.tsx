@@ -1,17 +1,21 @@
 import { NavLink } from 'react-router-dom';
-import { Bell, CheckCircle, Clock } from 'lucide-react';
+import { Home, Bell, CheckCircle, Clock } from 'lucide-react';
 import { usePatientStore } from '@/store/usePatientStore';
+import { isToday } from '@/utils/date';
 
 export function TabBar() {
   const { getPendingPatients, getConfirmedPatientsToHandle, getFollowupPatients } = usePatientStore();
-  const pendingCount = getPendingPatients().length;
-  const confirmedCount = getConfirmedPatientsToHandle().length;
+  
+  const allPending = getPendingPatients();
+  const todayPending = allPending.filter((p) => isToday(p.appointmentTime)).length;
+  const confirmedCount = getConfirmedPatientsToHandle().filter((p) => isToday(p.appointmentTime)).length;
   const followupCount = getFollowupPatients().length;
 
   const tabs = [
-    { to: '/', label: '待提醒', icon: Bell, count: pendingCount },
-    { to: '/confirmed', label: '已确认', icon: CheckCircle, count: confirmedCount },
-    { to: '/followup', label: '需跟进', icon: Clock, count: followupCount },
+    { to: '/', label: '首页', icon: Home, count: 0, end: true },
+    { to: '/pending', label: '待提醒', icon: Bell, count: todayPending, end: false },
+    { to: '/confirmed', label: '已确认', icon: CheckCircle, count: confirmedCount, end: false },
+    { to: '/followup', label: '需跟进', icon: Clock, count: followupCount, end: false },
   ];
 
   return (
@@ -23,9 +27,9 @@ export function TabBar() {
               <NavLink
                 key={tab.to}
                 to={tab.to}
-                end={tab.to === '/'}
+                end={tab.end}
                 className={({ isActive }) => `
-                  flex flex-col items-center justify-center gap-1 px-6 py-2 rounded-xl transition-all duration-200
+                  flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-xl transition-all duration-200
                   ${isActive 
                     ? 'text-primary-600 bg-primary-50 scale-105' 
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'

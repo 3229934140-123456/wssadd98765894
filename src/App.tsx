@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { TabBar } from '@/components/Layout/TabBar';
+import Dashboard from '@/pages/Dashboard';
 import PendingPage from '@/pages/PendingPage';
 import ConfirmedPage from '@/pages/ConfirmedPage';
 import FollowupPage from '@/pages/FollowupPage';
@@ -11,7 +12,8 @@ function App() {
         <TabBar />
         <main>
           <Routes>
-            <Route path="/" element={<PendingPage />} />
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/pending" element={<PendingPage />} />
             <Route path="/confirmed" element={<ConfirmedPage />} />
             <Route path="/followup" element={<FollowupPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />

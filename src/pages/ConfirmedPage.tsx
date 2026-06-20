@@ -3,14 +3,22 @@ import { Check, XCircle, Calendar, ChevronDown, ChevronUp, Clock, CheckCircle2 }
 import { PatientCard } from '@/components/Patient/PatientCard';
 import { NoShowModal } from '@/components/Modal/NoShowModal';
 import { usePatientStore } from '@/store/usePatientStore';
-import type { Patient, NoShowReason } from '@/types';
+import type { Patient, NoShowReason, DateFilter } from '@/types';
 import { noShowReasonLabels, statusLabels } from '@/types';
-import { formatChineseDate, formatTime } from '@/utils/date';
+import { formatChineseDate, formatTime, isToday } from '@/utils/date';
 import { Badge } from '@/components/common/Badge';
 import { cn } from '@/lib/utils';
 
 export default function ConfirmedPage() {
-  const { getConfirmedPatientsToHandle, getConfirmedPatientsHandled, markArrived, markNoShow } = usePatientStore();
+  const { 
+    getConfirmedPatientsToHandle, 
+    getConfirmedPatientsHandled, 
+    confirmedDateFilter,
+    setConfirmedDateFilter,
+    markArrived, 
+    markNoShow 
+  } = usePatientStore();
+  
   const toHandlePatients = getConfirmedPatientsToHandle();
   const handledPatients = getConfirmedPatientsHandled();
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -34,15 +42,26 @@ export default function ConfirmedPage() {
   };
 
   const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const dateTabs: { value: DateFilter; label: string }[] = [
+    { value: 'today', label: '今天' },
+    { value: 'tomorrow', label: '明天' },
+    { value: 'all', label: '全部' },
+  ];
+
+  const allEmpty = toHandlePatients.length === 0 && handledPatients.length === 0;
+  const allDone = toHandlePatients.length === 0 && handledPatients.length > 0;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
       <div className="pt-20 px-4 max-w-3xl mx-auto">
-        <div className="mb-6">
+        <div className="mb-4">
           <div className="flex items-center gap-2 mb-2">
             <Calendar size={20} className="text-primary-500" />
             <span className="text-lg font-semibold text-gray-800">
-              {formatChineseDate(today)}
+              {confirmedDateFilter === 'today' ? formatChineseDate(today) : confirmedDateFilter === 'tomorrow' ? formatChineseDate(tomorrow) : '全部预约'}
             </span>
           </div>
           <div className="flex items-center gap-4 text-sm">
@@ -52,6 +71,25 @@ export default function ConfirmedPage() {
             <span className="text-gray-500">
               已处理 <span className="font-semibold text-green-600 text-base">{handledPatients.length}</span> 位
             </span>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-1 mb-4 shadow-sm border border-gray-100">
+          <div className="flex">
+            {dateTabs.map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => setConfirmedDateFilter(tab.value)}
+                className={cn(
+                  'flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all',
+                  confirmedDateFilter === tab.value
+                    ? 'bg-primary-500 text-white shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -78,6 +116,11 @@ export default function ConfirmedPage() {
                         <span className="text-xl font-bold text-accent-600">
                           {formatTime(patient.appointmentTime)}
                         </span>
+                        {!isToday(patient.appointmentTime) && (
+                          <span className="text-xs text-accent-500 mt-0.5">
+                            {formatChineseDate(patient.appointmentTime).split(' ')[0]}
+                          </span>
+                        )}
                       </div>
 
                       <div className="flex-1 min-w-0">
@@ -123,21 +166,25 @@ export default function ConfirmedPage() {
           </div>
         )}
 
-        {toHandlePatients.length === 0 && handledPatients.length === 0 && (
+        {allEmpty && (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
               <Calendar size={40} className="text-gray-300" />
             </div>
             <p className="text-gray-400 text-lg">暂无已确认患者</p>
-            <p className="text-gray-300 text-sm mt-1">提醒后的患者会显示在这里</p>
+            <p className="text-gray-300 text-sm mt-1">
+              {confirmedDateFilter === 'today' ? '今天暂无已确认预约' : confirmedDateFilter === 'tomorrow' ? '明天暂无已确认预约' : '暂无已确认预约'}
+            </p>
           </div>
         )}
 
-        {toHandlePatients.length === 0 && handledPatients.length > 0 && (
+        {allDone && !allEmpty && (
           <div className="bg-green-50 border border-green-200 rounded-2xl p-6 mb-6 text-center">
             <CheckCircle2 size={48} className="mx-auto text-green-500 mb-3" />
-            <p className="text-green-700 font-semibold text-lg">今日患者已全部处理完毕！</p>
-            <p className="text-green-600 text-sm mt-1">太棒了，今天的核对工作完成啦 🎉</p>
+            <p className="text-green-700 font-semibold text-lg">
+              {confirmedDateFilter === 'today' ? '今日患者已全部处理完毕！' : confirmedDateFilter === 'tomorrow' ? '明日患者已全部处理完毕！' : '所有患者已全部处理完毕！'}
+            </p>
+            <p className="text-green-600 text-sm mt-1">太棒了，核对工作完成啦 🎉</p>
           </div>
         )}
 
@@ -149,7 +196,9 @@ export default function ConfirmedPage() {
             >
               <div className="flex items-center gap-2">
                 <CheckCircle2 size={18} className="text-green-500" />
-                <span className="font-medium text-gray-700">今日已处理</span>
+                <span className="font-medium text-gray-700">
+                  {confirmedDateFilter === 'today' ? '今日' : confirmedDateFilter === 'tomorrow' ? '明日' : '全部'}已处理
+                </span>
                 <Badge variant="success" size="sm">{handledPatients.length}</Badge>
               </div>
               {showHandled ? (

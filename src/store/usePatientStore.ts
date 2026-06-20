@@ -34,16 +34,18 @@ interface PatientState {
   dateFilter: DateFilter;
   doctorFilter: string;
   treatmentFilter: string;
+  confirmedDateFilter: DateFilter;
   
   setDateFilter: (filter: DateFilter) => void;
   setDoctorFilter: (filter: string) => void;
   setTreatmentFilter: (filter: string) => void;
+  setConfirmedDateFilter: (filter: DateFilter) => void;
   clearFilters: () => void;
   
   sendReminder: (id: string, method: ReminderMethod, remark?: string) => void;
   markArrived: (id: string) => void;
   markNoShow: (id: string, reason: NoShowReason) => void;
-  addFollowupRecord: (id: string, result: FollowupResult, note: string, nextFollowupDate?: string) => void;
+  addFollowupRecord: (id: string, result: FollowupResult, note: string, nextFollowupDate?: string, rescheduledTime?: string) => void;
   
   getFilteredPendingPatients: () => Patient[];
   getPendingPatients: () => Patient[];
@@ -63,10 +65,12 @@ export const usePatientStore = create<PatientState>()(
       dateFilter: 'today',
       doctorFilter: '',
       treatmentFilter: '',
+      confirmedDateFilter: 'today',
 
       setDateFilter: (filter) => set({ dateFilter: filter }),
       setDoctorFilter: (filter) => set({ doctorFilter: filter }),
       setTreatmentFilter: (filter) => set({ treatmentFilter: filter }),
+      setConfirmedDateFilter: (filter) => set({ confirmedDateFilter: filter }),
       clearFilters: () => set({ dateFilter: 'today', doctorFilter: '', treatmentFilter: '' }),
 
       sendReminder: (id, method, remark) =>
@@ -113,7 +117,7 @@ export const usePatientStore = create<PatientState>()(
           ),
         })),
 
-      addFollowupRecord: (id, result, note, nextFollowupDate) =>
+      addFollowupRecord: (id, result, note, nextFollowupDate, rescheduledTime) =>
         set((state) => ({
           patients: state.patients.map((p) => {
             if (p.id !== id) return p;
@@ -129,10 +133,16 @@ export const usePatientStore = create<PatientState>()(
 
             const existingRecords = p.followupRecords || [];
             
+            const isRescheduled = result === 'rescheduled' && rescheduledTime;
+            
             return {
               ...p,
               followupRecords: [newRecord, ...existingRecords],
-              nextFollowupDate,
+              nextFollowupDate: isRescheduled ? undefined : nextFollowupDate,
+              appointmentTime: isRescheduled ? rescheduledTime : p.appointmentTime,
+              status: isRescheduled ? 'pending' as PatientStatus : p.status,
+              reminderMethod: isRescheduled ? undefined : p.reminderMethod,
+              remark: isRescheduled ? undefined : p.remark,
               updatedAt: new Date().toISOString(),
             };
           }),
@@ -182,17 +192,26 @@ export const usePatientStore = create<PatientState>()(
       },
 
       getConfirmedPatientsToHandle: () => {
-        const { patients } = get();
+        const { patients, confirmedDateFilter } = get();
         return patients
           .filter((p) => p.status === 'confirmed')
+          .filter((p) => {
+            if (confirmedDateFilter === 'today') return isToday(p.appointmentTime);
+            if (confirmedDateFilter === 'tomorrow') return isTomorrow(p.appointmentTime);
+            return true;
+          })
           .sort((a, b) => new Date(a.appointmentTime).getTime() - new Date(b.appointmentTime).getTime());
       },
 
       getConfirmedPatientsHandled: () => {
-        const { patients } = get();
+        const { patients, confirmedDateFilter } = get();
         return patients
           .filter((p) => p.status === 'arrived' || p.status === 'no_show' || p.status === 'followup')
-          .filter((p) => isToday(p.appointmentTime) || isTomorrow(p.appointmentTime))
+          .filter((p) => {
+            if (confirmedDateFilter === 'today') return isToday(p.appointmentTime);
+            if (confirmedDateFilter === 'tomorrow') return isTomorrow(p.appointmentTime);
+            return true;
+          })
           .sort((a, b) => new Date(b.appointmentTime).getTime() - new Date(a.appointmentTime).getTime());
       },
 
@@ -221,6 +240,7 @@ export const usePatientStore = create<PatientState>()(
         dateFilter: 'today',
         doctorFilter: '',
         treatmentFilter: '',
+        confirmedDateFilter: 'today',
       }),
     }),
     {
